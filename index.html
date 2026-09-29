@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fluency Draw</title>
+<meta name="description" content="Pick a level and draw six fresh arithmetic fluency questions at a time.">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2f6f62">
+
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fluency Draw">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#eef1ee;
+    --surface:#ffffff;
+    --ink:#1e2a28;
+    --ink-soft:#54635e;
+    --ink-faint:#8b9791;
+    --line:#d7dbd4;
+    --accent:#2f6f62;
+    --accent-2:#a8752b;
+    --accent-soft:#2f6f6217;
+    --accent-2-soft:#a8752b17;
+    --on-accent:#f4f7f5;
+    --font-display:'Fraunces',Georgia,serif;
+    --font-body:'Karla','Segoe UI',sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#121816;
+      --surface:#1a2320;
+      --ink:#e7ece8;
+      --ink-soft:#aab6b0;
+      --ink-faint:#6d7a74;
+      --line:#2b3532;
+      --accent:#63c3ab;
+      --accent-2:#dda75c;
+      --accent-soft:#63c3ab20;
+      --accent-2-soft:#dda75c20;
+      --on-accent:#0d1412;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#121816;
+    --surface:#1a2320;
+    --ink:#e7ece8;
+    --ink-soft:#aab6b0;
+    --ink-faint:#6d7a74;
+    --line:#2b3532;
+    --accent:#63c3ab;
+    --accent-2:#dda75c;
+    --accent-soft:#63c3ab20;
+    --accent-2-soft:#dda75c20;
+    --on-accent:#0d1412;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    margin:0;
+    line-height:1.5;
+  }
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  .wrap{max-width:760px;margin:0 auto;padding:56px 24px 80px;}
+
+  .eyebrow{
+    font-family:var(--font-mono);font-size:.75rem;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;
+  }
+  h1{
+    font-family:var(--font-display);font-weight:700;
+    font-size:clamp(2.1rem,4.5vw,2.75rem);margin:0 0 10px;text-wrap:balance;
+  }
+  .tagline{color:var(--ink-soft);font-size:1.02rem;margin:0 0 36px;max-width:52ch;}
+
+  .levels{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;
+  }
+  @media (min-width:560px){ .levels{grid-template-columns:repeat(6,1fr);} }
+  .level-btn{
+    font-family:var(--font-body);font-weight:600;font-size:.9rem;
+    background:var(--surface);color:var(--ink-soft);
+    border:1.5px solid var(--line);border-radius:8px;
+    padding:12px 6px;cursor:pointer;text-align:center;
+    transition:border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  .level-btn:hover{border-color:var(--ink-faint);}
+  .level-btn[aria-pressed="true"]{
+    color:var(--on-accent);background:var(--lvl-accent);border-color:var(--lvl-accent);
+  }
+  .level-btn.odd{--lvl-accent:var(--accent);}
+  .level-btn.even{--lvl-accent:var(--accent-2);}
+
+  .draw-row{display:flex;align-items:center;gap:16px;margin-bottom:40px;flex-wrap:wrap;}
+  .draw-btn{
+    font-family:var(--font-body);font-weight:700;font-size:1rem;
+    background:var(--ink);color:var(--paper);
+    border:none;border-radius:8px;padding:14px 28px;cursor:pointer;
+    transition:opacity .15s ease;
+  }
+  .draw-btn:hover{opacity:.85;}
+  .draw-btn:active{opacity:.7;}
+  .current-level{
+    font-family:var(--font-mono);font-size:.85rem;color:var(--ink-faint);
+  }
+
+  ol.questions{list-style:none;margin:0;padding:0;counter-reset:q;}
+  ol.questions li{
+    counter-increment:q;
+    display:flex;gap:16px;align-items:baseline;
+    padding:16px 0 16px 16px;border-left:3px solid var(--set-accent, var(--accent));
+    border-bottom:1px solid var(--line);
+  }
+  ol.questions li:last-child{border-bottom:none;}
+  ol.questions li::before{
+    content:counter(q);font-family:var(--font-mono);color:var(--ink-faint);
+    font-size:.95rem;min-width:1.2em;flex-shrink:0;
+    font-variant-numeric:tabular-nums;
+  }
+  .qtext{
+    font-family:var(--font-mono);font-size:1.12rem;color:var(--ink);
+    font-variant-numeric:tabular-nums;line-height:1.55;
+  }
+  .empty-state{color:var(--ink-faint);font-style:italic;padding:20px 0;}
+
+  footer{
+    margin-top:44px;padding-top:20px;border-top:1px solid var(--line);
+    color:var(--ink-faint);font-size:.85rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Fluency practice</p>
+    <h1>Fluency Draw</h1>
+    <p class="tagline">Choose a level, then draw six fresh questions — a different set every time.</p>
+  </header>
+
+  <div class="levels" id="levelButtons" role="group" aria-label="Choose a level"></div>
+
+  <div class="draw-row">
+    <button class="draw-btn" id="drawBtn">New Questions</button>
+    <span class="current-level" id="currentLevelLabel"></span>
+  </div>
+
+  <ol class="questions" id="questionList"></ol>
+
+  <footer>No answers shown — for use alongside a tutor or parent checking the working.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function pick(arr){ return arr[randInt(0,arr.length-1)]; }
+  function gcd(a,b){ return b===0?a:gcd(b,a%b); }
+  function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=randInt(0,i); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+  function numToStr(n){ const s=Math.abs(n).toLocaleString('en-GB'); return n<0 ? '−'+s : s; }
+  /* second addition/subtraction operand: allowed to have up to 3 fewer digits than the first */
+  function secondOperand(maxDigits){
+    const digits=randInt(Math.max(1,maxDigits-3),maxDigits);
+    const lo=digits<=1?1:Math.pow(10,digits-1); const hi=Math.pow(10,digits)-1;
+    return randInt(lo,hi);
+  }
+
+  function blankSequence(terms, blankCount){
+    const n=terms.length;
+    const maxStart=n-blankCount-1;
+    let startIdx;
+    if(Math.random()<0.7 && maxStart>=2){ startIdx=randInt(2,maxStart); }
+    else { startIdx=n-blankCount; }
+    const display=terms.map((t,i)=> (i>=startIdx && i<startIdx+blankCount) ? '_' : numToStr(t));
+    return 'Fill in the gaps: '+display.join(', ');
+  }
+
+  /* ---------- main operations ---------- */
+  function add3(){ const a=randInt(120,890); const b=secondOperand(String(a).length); return numToStr(a)+' + '+numToStr(b)+' ='; }
+  function sub3(){ const a=randInt(400,999); let b=secondOperand(String(a).length); if(b>=a) b=randInt(10,a-10); return numToStr(a)+' − '+numToStr(b)+' ='; }
+  function mul_L1(){ const t=pick([3,4,6,7,8]); const n=randInt(11,89); return n+' × '+t+' ='; }
+  function div_L1(){ const t=pick([3,4,8]); const q=randInt(4,24); return numToStr(t*q)+' ÷ '+t+' ='; }
+
+  function addN(min,max){ const a=randInt(min,max); const b=secondOperand(String(a).length); return numToStr(a)+' + '+numToStr(b)+' ='; }
+  function subN(min,max){ const a=randInt(Math.round((min+max)/2),max); let b=secondOperand(String(a).length); if(b>=a) b=randInt(1,a-1); return numToStr(a)+' − '+numToStr(b)+' ='; }
+
+  function mul_L2(){ const n=randInt(23,689), t=randInt(2,9); return numToStr(n)+' × '+t+' ='; }
+  function div_L2(){ const t=randInt(2,9), q=randInt(11,99); return numToStr(t*q)+' ÷ '+t+' ='; }
+  function mul_L3(){ const n=randInt(134,978), t=randInt(3,9); return numToStr(n)+' × '+t+' ='; }
+  function div_L3(){ const t=randInt(3,9), q=randInt(23,148); return numToStr(t*q)+' ÷ '+t+' ='; }
+  function mul_L4(){ const a=randInt(234,4876), b=randInt(12,89); return numToStr(a)+' × '+b+' ='; }
+  function div_L4_rem(){ const d=randInt(3,9), n=randInt(1023,9876); return numToStr(n)+' ÷ '+d+' ='; }
+  function mul_L5(){ const a=randInt(1250,6789), b=randInt(13,96); return numToStr(a)+' × '+b+' ='; }
+  function div_L5_rem(){ const d=randInt(4,9), n=randInt(2000,9999); return numToStr(n)+' ÷ '+d+' ='; }
+  function mul_L6(){ const a=randInt(2450,9876), b=randInt(23,97); return numToStr(a)+' × '+b+' ='; }
+  function div_L6_long(){ const d=randInt(11,38), n=randInt(1200,9876); return numToStr(n)+' ÷ '+d+' ='; }
+
+  function add_L6(){ const a=randInt(1000000,8999999); const b=secondOperand(String(a).length); return numToStr(a)+' + '+numToStr(b)+' ='; }
+  function sub_L6(){
+    if(Math.random()<0.5){
+      const a=randInt(200000,999999)/100; const b=randInt(100000,Math.floor(a*100)-100)/100;
+      return a.toFixed(2)+' − '+b.toFixed(2)+' =';
+    }
+    const a=randInt(4000000,9999999); let b=secondOperand(String(a).length); if(b>=a) b=randInt(100000,a-100000);
+    return numToStr(a)+' − '+numToStr(b)+' =';
+  }
+
+  /* ---------- fractions ---------- */
+  function fracOfAmount(){ const d=pick([2,3,4,5,8]); const mult=randInt(2,12); const whole=d*mult; const n=randInt(1,d-1); return 'Find '+n+'/'+d+' of '+whole; }
+  function fracEquivalence(){
+    const pairs=[[1,2],[1,3],[1,4],[2,3],[3,4],[1,5],[2,5],[3,8]];
+    const [n,d]=pick(pairs); const k=randInt(2,4);
+    const correct=(n*k)+'/'+(d*k);
+    const decoy1=(n*k+1)+'/'+(d*k);
+    const decoy2=n+'/'+(d*k+(Math.random()<0.5?1:-1));
+    const opts=shuffle([correct,decoy1,decoy2]);
+    return 'Which fraction is equivalent to '+n+'/'+d+': '+opts[0]+', '+opts[1]+', or '+opts[2]+'?';
+  }
+  function fracOfAmountOrEquiv(){ return Math.random()<0.6 ? fracOfAmount() : fracEquivalence(); }
+
+  function fracSameDenom(){
+    const d=pick([4,5,6,8,9,10,12]);
+    if(Math.random()<0.5){ const n1=randInt(1,d-2); const n2=randInt(1,d-n1-1)||1; return n1+'/'+d+' + '+n2+'/'+d+' ='; }
+    const n1=randInt(2,d-1); const n2=randInt(1,n1-1); return n1+'/'+d+' − '+n2+'/'+d+' =';
+  }
+
+  function fracRelated(){
+    const baseDenoms=[2,3,4,5,6,8,10];
+    const d1=pick(baseDenoms); const ks=[2,3,4].filter(k=>d1*k<=24); const k=pick(ks); const d2=d1*k;
+    const n1=randInt(1,d1-1), n2=randInt(1,d2-1);
+    if(Math.random()<0.5) return n1+'/'+d1+' + '+n2+'/'+d2+' =';
+    const v1=n1*d2, v2=n2*d1;
+    return v1>=v2 ? (n1+'/'+d1+' − '+n2+'/'+d2+' =') : (n2+'/'+d2+' − '+n1+'/'+d1+' =');
+  }
+
+  function fracUnlike(){
+    const pairs=[[3,4],[4,5],[4,6],[3,5],[5,6],[2,5],[3,8]];
+    const [d1,d2]=pick(pairs); const n1=randInt(1,d1-1), n2=randInt(1,d2-1);
+    if(Math.random()<0.5) return n1+'/'+d1+' + '+n2+'/'+d2+' =';
+    const v1=n1*d2, v2=n2*d1;
+    return v1>=v2 ? (n1+'/'+d1+' − '+n2+'/'+d2+' =') : (n2+'/'+d2+' − '+n1+'/'+d1+' =');
+  }
+
+  function fracOther(){
+    const type=pick(['mulWhole','simplify','mixed']);
+    if(type==='mulWhole'){ const d=pick([3,4,5,6,8]); const n=randInt(1,d-1); const w=randInt(4,20); return n+'/'+d+' × '+w+' ='; }
+    if(type==='simplify'){ const g=pick([2,3,4]); const dr=pick([2,3,4,5,6]); const nr=randInt(1,dr-1); return 'Simplify '+(nr*g)+'/'+(dr*g)+' to its lowest terms'; }
+    const d=pick([3,4,5,6,8]); const n=randInt(d+1,d*3); return 'Write '+n+'/'+d+' as a mixed number';
+  }
+
+  function fracL6(){
+    const type=pick(['addSub','mulFrac','divWhole']);
+    if(type==='addSub') return fracUnlike();
+    if(type==='mulFrac'){ const d1=pick([3,4,5,6]); const n1=randInt(1,d1-1); const d2=pick([3,5,7,8]); const n2=randInt(1,d2-1); return n1+'/'+d1+' × '+n2+'/'+d2+' ='; }
+    const d=pick([3,4,5,6,8]); const n=randInt(1,d-1); const w=randInt(2,6); return n+'/'+d+' ÷ '+w+' =';
+  }
+
+  /* ---------- decimals ---------- */
+  function randDecimal(dpOptions, wholeMax){
+    const dp=pick(dpOptions); const whole=randInt(0,wholeMax);
+    const fracDigits=randInt(1,Math.pow(10,dp)-1);
+    return {val: whole+fracDigits/Math.pow(10,dp), dp};
+  }
+  function decimalsAddSub(dpOptions, wholeMax){
+    const A=randDecimal(dpOptions,wholeMax), B=randDecimal(dpOptions,wholeMax);
+    if(Math.random()<0.5) return A.val.toFixed(A.dp)+' + '+B.val.toFixed(B.dp)+' =';
+    const hi=A.val>=B.val?A:B, lo=A.val>=B.val?B:A;
+    return hi.val.toFixed(hi.dp)+' − '+lo.val.toFixed(lo.dp)+' =';
+  }
+  function decimalsL2(){
+    const a=randInt(1,9)/10, b=randInt(1,9)/10;
+    return Math.random()<0.5 ? (a.toFixed(1)+' + '+b.toFixed(1)+' =') : (Math.max(a,b).toFixed(1)+' − '+Math.min(a,b).toFixed(1)+' =');
+  }
+  function decimalsL3(){
+    const a=randInt(1,9)+randInt(1,9)/10, b=randInt(1,9)+randInt(1,9)/10;
+    return Math.random()<0.5 ? (a.toFixed(1)+' + '+b.toFixed(1)+' =') : (Math.max(a,b).toFixed(1)+' − '+Math.min(a,b).toFixed(1)+' =');
+  }
+  function decimalsAddSub_L4(){
+    const a=randInt(10,99)+randInt(1,99)/100, b=randInt(10,99)+randInt(1,99)/100;
+    return Math.random()<0.5 ? (a.toFixed(2)+' + '+b.toFixed(2)+' =') : (Math.max(a,b).toFixed(2)+' − '+Math.min(a,b).toFixed(2)+' =');
+  }
+  function decimalsAddSub_L5(){ return decimalsAddSub([2,3], 98); }
+  function decimalsCompare(){
+    const vals=new Set(); while(vals.size<3){ vals.add((randInt(100,599)/1000).toFixed(3)); }
+    return 'Order these decimals from smallest to largest: '+[...vals].join(', ');
+  }
+  function decimalsMultDiv(){
+    if(Math.random()<0.5){ const a=randInt(105,895)/100, w=randInt(3,9); return a.toFixed(2)+' × '+w+' ='; }
+    const w=randInt(2,8), dividend=randInt(120,996)/10; return dividend.toFixed(1)+' ÷ '+w+' =';
+  }
+
+  function tenHundred(){
+    const factor=pick([10,100]), base=randInt(3,987);
+    if(Math.random()<0.5) return numToStr(base)+' × '+factor+' =';
+    return numToStr(base*factor)+' ÷ '+factor+' =';
+  }
+  function tenHundredThousand(){
+    const factor=pick([10,100,1000]);
+    if(Math.random()<0.4){
+      const base=randInt(105,998)/100;
+      return Math.random()<0.5 ? base.toFixed(2)+' × '+factor+' =' : (base*factor).toFixed(2)+' ÷ '+factor+' =';
+    }
+    const base=randInt(12,9876);
+    return Math.random()<0.5 ? numToStr(base)+' × '+factor+' =' : numToStr(base*factor)+' ÷ '+factor+' =';
+  }
+
+  /* ---------- squares, cubes, factors ---------- */
+  function squaresCubes(){
+    const type=pick(['square','cube','both']); const s=randInt(2,12), c=randInt(2,9);
+    if(type==='square') return 'What is '+s+'² ?';
+    if(type==='cube') return 'What is '+c+'³ ?';
+    return 'What is '+s+'² + '+c+'³ ?';
+  }
+  function factorsEtc(){
+    const type=pick(['factors','prime','commonMultiples']);
+    if(type==='factors'){ const n=pick([24,36,40,48,56,60,72,45,64,84]); return 'Find all the factors of '+n; }
+    if(type==='prime'){ const n=pick([29,31,37,41,47,51,57,63,67,71]); return 'Is '+n+' a prime number? Explain how you know'; }
+    const a=pick([3,4,5,6]); const bOpts=[4,6,8,9].filter(x=>x!==a); const b=pick(bOpts);
+    return 'Find the first three common multiples of '+a+' and '+b;
+  }
+  function factorsSimple(){ const n=pick([32,45,56,60,66,72,80,54,42,48]); return 'Find all the factors of '+n; }
+  function commonFactorsMultiples(){
+    const type=pick(['hcf','lcm','simplify']);
+    if(type==='hcf'){ const pairs=[[36,48],[24,60],[18,42],[28,42],[20,30],[16,40]]; const [a,b]=pick(pairs); return 'Find the highest common factor of '+a+' and '+b; }
+    if(type==='lcm'){ const pairs=[[6,8],[4,6],[5,6],[3,8],[4,10],[6,9]]; const [a,b]=pick(pairs); return 'Find the lowest common multiple of '+a+' and '+b; }
+    const pairs=[[18,24],[16,20],[21,28],[15,25],[12,30],[20,24]]; const [n,d]=pick(pairs); return 'Simplify '+n+'/'+d+' using the highest common factor';
+  }
+
+  /* ---------- percentages ---------- */
+  function percentagesRecognition(){
+    if(Math.random()<0.5){ const p=pick([10,20,25,40,50,60,75,80,90]); return 'Write '+p+'% as a fraction in its simplest form'; }
+    const pairs=[[1,4],[1,2],[3,4],[1,5],[2,5],[3,5],[4,5],[1,10],[3,10],[7,10]]; const [n,d]=pick(pairs); return 'Write '+n+'/'+d+' as a percentage';
+  }
+  function percentageOfAmount(){
+    const p=pick([10,20,25,40,50,75,5,15,30,60]); const amt=pick([40,60,80,120,150,200,250,300,360,400]);
+    return 'Find '+p+'% of '+amt;
+  }
+  function percentagesL6(){
+    const type=pick(['find','increase','decrease','writeAsPercent']);
+    if(type==='find'){ const p=pick([15,35,45,65,70,85]); const amt=pick([60,80,140,220,340,420,180]); return 'Find '+p+'% of '+amt; }
+    if(type==='increase'){ const p=pick([10,15,20,25]); const amt=pick([40,60,80,120,160]); return 'Increase '+amt+' by '+p+'%'; }
+    if(type==='decrease'){ const p=pick([10,15,20,25,30]); const amt=pick([45,60,90,120,150]); return 'Decrease '+amt+' by '+p+'%'; }
+    const pairs=[[3,8],[5,8],[7,8],[1,8],[9,20],[11,20],[3,40]]; const [n,d]=pick(pairs); return 'Write '+n+'/'+d+' as a percentage';
+  }
+
+  /* ---------- negative numbers ---------- */
+  function negThroughZero(){
+    if(Math.random()<0.5){ const a=-randInt(2,6), b=randInt(1,6); return 'Count on from '+numToStr(a)+' to '+b+'. What numbers are in between?'; }
+    const n=randInt(2,7), from=randInt(0,4); return 'What is '+n+' less than '+from+'?';
+  }
+  function negCalc(){
+    const type=pick(['addNeg','subCross','order']);
+    if(type==='addNeg'){ const a=-randInt(2,12), b=randInt(3,20); return numToStr(a)+' + '+b+' ='; }
+    if(type==='subCross'){ const a=randInt(1,8), b=randInt(a+1,20); return a+' − '+b+' ='; }
+    const vals=new Set(); while(vals.size<4){ vals.add(randInt(-9,9)); }
+    return 'Order these from smallest to largest: '+[...vals].map(numToStr).join(', ');
+  }
+  function largeAndNegative(){
+    if(Math.random()<0.5){ const n=randInt(1200000,9876543); const unit=pick([10000,100000,1000000]); return 'Round '+numToStr(n)+' to the nearest '+numToStr(unit); }
+    const vals=new Set(); while(vals.size<5){ vals.add(randInt(-25,15)); }
+    return 'Order these from smallest to largest: '+[...vals].map(numToStr).join(', ');
+  }
+
+  /* ---------- number bonds ---------- */
+  function numberBondsTo(total){
+    const a=randInt(1,total-1);
+    return Math.random()<0.5 ? (numToStr(a)+' + ? = '+numToStr(total)) : ('? + '+numToStr(a)+' = '+numToStr(total));
+  }
+  function numberBonds_L1(){ return numberBondsTo(100); }
+  function numberBonds_L23(){ return numberBondsTo(1000); }
+  function numberBonds_L4(){ return numberBondsTo(randInt(1,9)*1000); }
+  function numberBonds_L56(){ return numberBondsTo(pick([100000,1000000])); }
+
+  /* ---------- rounding ---------- */
+  function roundingL23(){ const n=randInt(1200,98999); const unit=pick([10,100,1000]); return 'Round '+numToStr(n)+' to the nearest '+unit; }
+
+  /* ---------- ordering large numbers ---------- */
+  function orderLargeNumbers(digits){
+    function randNumber(forceLead){
+      const lead=forceLead!==undefined?forceLead:randInt(1,9);
+      let s=''+lead; for(let i=1;i<digits;i++) s+=randInt(0,9);
+      return parseInt(s,10);
+    }
+    const nums=new Set(); const leadPool=[];
+    while(nums.size<4){
+      const n=(leadPool.length && Math.random()<0.65) ? randNumber(pick(leadPool)) : randNumber();
+      if(!nums.has(n)){ nums.add(n); leadPool.push(Math.floor(n/Math.pow(10,digits-1))); }
+    }
+    const arr=[...nums];
+    return 'Order these from smallest to largest: '+arr.map(numToStr).join(', ');
+  }
+
+  /* ---------- missing number ---------- */
+  function missingNumber_L1(){
+    const type=pick(['add','subA','subB']);
+    if(type==='add'){ const a=randInt(150,500), c=randInt(a+100,999); return a+' + ? = '+c; }
+    if(type==='subA'){ const b=randInt(100,400), c=randInt(100,500); return '? − '+b+' = '+c; }
+    const a=randInt(500,999), c=randInt(100,a-100); return a+' − ? = '+c;
+  }
+  function addMissing_L23(){
+    if(Math.random()<0.5){ const a=randInt(1500,6000), c=randInt(a+300,9999); return numToStr(a)+' + ? = '+numToStr(c); }
+    const b=randInt(1500,6000), c=randInt(b+300,9999); return '? + '+numToStr(b)+' = '+numToStr(c);
+  }
+  function subMissing_L23(){
+    if(Math.random()<0.5){ const b=randInt(500,3000), c=randInt(500,3000); return '? − '+numToStr(b)+' = '+numToStr(c); }
+    const a=randInt(3000,9000), c=randInt(500,a-500); return numToStr(a)+' − ? = '+numToStr(c);
+  }
+  function mulMissing_L23(){
+    const f=randInt(3,12), other=randInt(4,12);
+    return Math.random()<0.5 ? (f+' × ? = '+(f*other)) : ('? × '+f+' = '+(f*other));
+  }
+  function divMissing_L23(){
+    /* blank is never the divisor here — solving for a missing divisor needs a division of its own, too hard below Level 5 */
+    const divisor=randInt(3,12), quotient=randInt(4,12); const dividend=divisor*quotient;
+    return Math.random()<0.5 ? ('? ÷ '+divisor+' = '+quotient) : (dividend+' ÷ '+divisor+' = ?');
+  }
+  function missingNumber_L23(){ return pick([addMissing_L23,subMissing_L23,mulMissing_L23,divMissing_L23])(); }
+
+  function addMissing_L45(){
+    if(Math.random()<0.5){ const a=randInt(3000,7000), c=randInt(a+500,9999); return numToStr(a)+' + ? = '+numToStr(c); }
+    const b=randInt(3000,7000), c=randInt(b+500,9999); return '? + '+numToStr(b)+' = '+numToStr(c);
+  }
+  function subMissing_L45(){
+    if(Math.random()<0.5){ const c=randInt(1500,4000), b=randInt(500,2500); const a=c+b; return numToStr(a)+' − ? = '+numToStr(c); }
+    const b=randInt(500,2500), c=randInt(1500,4000); return '? − '+numToStr(b)+' = '+numToStr(c);
+  }
+  function mulMissing_L45(){
+    const f=randInt(8,15), other=randInt(9,20);
+    return Math.random()<0.5 ? ('? × '+f+' = '+numToStr(f*other)) : (f+' × ? = '+numToStr(f*other));
+  }
+  function divMissing_L45(){
+    const divisor=randInt(6,12), quotient=randInt(9,15);
+    return Math.random()<0.5 ? (numToStr(divisor*quotient)+' ÷ ? = '+quotient) : ('? ÷ '+divisor+' = '+quotient);
+  }
+  function divMissing_L45_safe(){
+    /* Level 4 version: blank is never the divisor — keeps the reasoning without also needing a division to solve it */
+    const divisor=randInt(6,12), quotient=randInt(9,15); const dividend=divisor*quotient;
+    return Math.random()<0.5 ? ('? ÷ '+divisor+' = '+quotient) : (numToStr(dividend)+' ÷ '+divisor+' = ?');
+  }
+  function missingNumber_L45(){ return pick([addMissing_L45,subMissing_L45,mulMissing_L45,divMissing_L45])(); }
+  function missingNumber_L45_safe(){ return pick([addMissing_L45,subMissing_L45,mulMissing_L45,divMissing_L45_safe])(); }
+
+  function addMissing_L6(){
+    const a=randInt(1000000,8000000), c=randInt(a+500000,9999999);
+    return Math.random()<0.5 ? (numToStr(a)+' + ? = '+numToStr(c)) : ('? + '+numToStr(a)+' = '+numToStr(c));
+  }
+  function subMissing_L6(){
+    const c=randInt(1000000,4000000), b=randInt(500000,3000000); const a=c+b;
+    return Math.random()<0.5 ? (numToStr(a)+' − ? = '+numToStr(c)) : ('? − '+numToStr(b)+' = '+numToStr(c));
+  }
+  function mulMissing_L6(){
+    const b=randInt(23,97), other=randInt(120,900); const product=other*b;
+    return Math.random()<0.5 ? ('? × '+b+' = '+numToStr(product)) : (numToStr(other)+' × ? = '+numToStr(product));
+  }
+  function divMissing_L6(){
+    const divisor=randInt(11,38), quotient=randInt(40,260); const dividend=divisor*quotient;
+    return Math.random()<0.5 ? ('? ÷ '+divisor+' = '+quotient) : (numToStr(dividend)+' ÷ ? = '+quotient);
+  }
+  function missingNumberAlgebra(){
+    const type=pick(['linearFunc','mulLarge','solveLinear']);
+    if(type==='linearFunc'){ const m=randInt(2,6), c=randInt(1,9), x=randInt(2,9); return 'If y = '+m+'x + '+c+', what is y when x = '+x+'?'; }
+    if(type==='mulLarge'){ const f=randInt(12,25), other=randInt(15,40); return '? × '+f+' = '+numToStr(f*other); }
+    const m=randInt(2,5), c=randInt(3,12), x=randInt(4,15); return 'If '+m+'x + '+c+' = '+(m*x+c)+', what is x?';
+  }
+
+  /* ---------- sequences ---------- */
+  function sequenceL1(){
+    const step=pick([2,3,4,5,8]); const dir=Math.random()<0.7?1:-1; const start=dir===1?randInt(1,12):randInt(30,60);
+    const terms=[]; let v=start; for(let i=0;i<7;i++){ terms.push(v); v+=dir*step; }
+    return blankSequence(terms, pick([1,2]));
+  }
+  function sequenceSquares(){
+    const startN=randInt(1,4); const terms=[]; for(let i=0;i<6;i++){ terms.push(Math.pow(startN+i,2)); }
+    return blankSequence(terms, pick([1,2]));
+  }
+  function missingOrSeqL4(){ return Math.random()<0.5 ? missingNumber_L45_safe() : sequenceSquares(); }
+  function sequenceL5(){
+    const step=pick([3,4,6,7,9,11,13]); const dir=Math.random()<0.6?1:-1; const start=dir===1?randInt(-10,20):randInt(40,90);
+    const terms=[]; let v=start; for(let i=0;i<7;i++){ terms.push(v); v+=dir*step; }
+    return blankSequence(terms, pick([1,2]));
+  }
+  function sequenceL6(){
+    if(Math.random()<0.5){ const startN=randInt(1,3); const terms=[]; for(let i=0;i<5;i++){ terms.push(Math.pow(startN+i,3)); } return blankSequence(terms,1); }
+    const step=pick([6,7,8,9,12]); const start=randInt(15,30); const terms=[]; let v=start;
+    for(let i=0;i<6;i++){ terms.push(v); v-=step; }
+    return blankSequence(terms, pick([1,2]));
+  }
+
+  /* ---------- order of operations ---------- */
+  function bidmas(){
+    const type=pick(['a','b','c']);
+    if(type==='a'){ const x=randInt(2,9), y=randInt(2,9), z=randInt(2,12); return z+' + '+x+' × '+y+' ='; }
+    if(type==='b'){ const a=randInt(2,9), b=randInt(2,9), c=randInt(2,8), d=randInt(2,6); return '('+a+' + '+b+') × ('+c+' − '+d+') ='; }
+    const b=randInt(2,9), c=randInt(2,6), a=randInt(10,40); return a+' − '+(b*c)+' ÷ '+c+' =';
+  }
+
+  /* ---------- level configuration ---------- */
+  const LEVELS=[
+    { main:[add3, sub3, mul_L1, div_L1],
+      other:[fracOfAmountOrEquiv, fracSameDenom, missingNumber_L1, sequenceL1, numberBonds_L1] },
+    { main:[()=>addN(1200,8999), ()=>subN(1200,8999), mul_L2, div_L2],
+      other:[decimalsL2, tenHundred, fracSameDenom, negThroughZero, missingNumber_L23, roundingL23, numberBonds_L23] },
+    { main:[()=>addN(3500,9899), ()=>subN(3500,9899), mul_L3, div_L3],
+      other:[decimalsL3, tenHundred, fracSameDenom, negThroughZero, missingNumber_L23, roundingL23, numberBonds_L23] },
+    { main:[()=>addN(12000,89999), ()=>subN(12000,89999), mul_L4, div_L4_rem],
+      other:[squaresCubes, factorsEtc, fracRelated, decimalsCompare, decimalsAddSub_L4, percentagesRecognition, negCalc, missingOrSeqL4, tenHundredThousand, ()=>orderLargeNumbers(5), numberBonds_L4] },
+    { main:[()=>addN(120000,899999), ()=>subN(120000,899999), mul_L5, div_L5_rem],
+      other:[fracUnlike, fracRelated, fracOther, decimalsAddSub_L5, percentageOfAmount, negCalc, squaresCubes, factorsSimple, sequenceL5, missingNumber_L45, ()=>orderLargeNumbers(6), numberBonds_L56] },
+    { main:[add_L6, sub_L6, mul_L6, div_L6_long],
+      other:[bidmas, fracL6, decimalsMultDiv, percentagesL6, commonFactorsMultiples, missingNumberAlgebra, sequenceL6, largeAndNegative, ()=>orderLargeNumbers(7), numberBonds_L56] }
+  ];
+
+  /* from Level 3 up, one of the 4 main-operation slots is swapped for a matching missing-number version */
+  const MAIN_MISSING_VARIANTS={
+    2:[addMissing_L23, subMissing_L23, mulMissing_L23, divMissing_L23],
+    3:[addMissing_L45, subMissing_L45, mulMissing_L45, divMissing_L45_safe],
+    4:[addMissing_L45, subMissing_L45, mulMissing_L45, divMissing_L45],
+    5:[addMissing_L6, subMissing_L6, mulMissing_L6, divMissing_L6]
+  };
+
+  /* ---------- UI wiring ---------- */
+  const levelButtonsEl=document.getElementById('levelButtons');
+  const questionListEl=document.getElementById('questionList');
+  const drawBtn=document.getElementById('drawBtn');
+  const currentLevelLabel=document.getElementById('currentLevelLabel');
+
+  let selectedLevel=0;
+
+  LEVELS.forEach((cfg,i)=>{
+    const btn=document.createElement('button');
+    btn.className='level-btn '+(i%2===0?'odd':'even');
+    btn.textContent='Level '+(i+1);
+    btn.setAttribute('aria-pressed', i===selectedLevel ? 'true':'false');
+    btn.addEventListener('click', ()=>{
+      selectedLevel=i;
+      Array.from(levelButtonsEl.children).forEach((b,j)=> b.setAttribute('aria-pressed', j===i?'true':'false'));
+      updateLevelLabel();
+    });
+    levelButtonsEl.appendChild(btn);
+  });
+
+  function updateLevelLabel(){
+    currentLevelLabel.textContent='Level '+(selectedLevel+1)+' selected';
+  }
+
+  function draw(){
+    const cfg=LEVELS[selectedLevel];
+    const qs=cfg.main.map(fn=>fn());
+    const missingVariants=MAIN_MISSING_VARIANTS[selectedLevel];
+    if(missingVariants){ const slot=randInt(0,3); qs[slot]=missingVariants[slot](); }
+    const idxs=shuffle([...cfg.other.keys()]).slice(0,2);
+    idxs.forEach(i=> qs.push(cfg.other[i]()));
+    shuffle(qs);
+    questionListEl.innerHTML='';
+    questionListEl.style.setProperty('--set-accent', selectedLevel%2===0 ? 'var(--accent)':'var(--accent-2)');
+    qs.forEach(q=>{
+      const li=document.createElement('li');
+      const span=document.createElement('span');
+      span.className='qtext';
+      span.textContent=q;
+      li.appendChild(span);
+      questionListEl.appendChild(li);
+    });
+  }
+
+  drawBtn.addEventListener('click', draw);
+
+  updateLevelLabel();
+  draw();
+})();
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+
+</body>
+</html>
