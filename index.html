@@ -172,8 +172,10 @@
   function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=randInt(0,i); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
   function numToStr(n){ const s=Math.abs(n).toLocaleString('en-GB'); return n<0 ? '−'+s : s; }
   /* second addition/subtraction operand: allowed to have up to 3 fewer digits than the first */
-  function secondOperand(maxDigits){
-    const digits=randInt(Math.max(1,maxDigits-3),maxDigits);
+  function secondOperand(maxDigits,pDiff){
+    /* pDiff (Level 5+): chance the second operand has fewer digits, i.e. its first digit sits in a different place value */
+    const digits = pDiff===undefined ? randInt(Math.max(1,maxDigits-3),maxDigits)
+      : (Math.random()<pDiff ? randInt(Math.max(1,maxDigits-3),maxDigits-1) : maxDigits);
     const lo=digits<=1?1:Math.pow(10,digits-1); const hi=Math.pow(10,digits)-1;
     return randInt(lo,hi);
   }
@@ -194,8 +196,8 @@
   function mul_L1(){ const t=pick([3,4,6,7,8]); const n=randInt(11,89); return n+' × '+t+' ='; }
   function div_L1(){ const t=pick([3,4,8]); const q=randInt(4,24); return numToStr(t*q)+' ÷ '+t+' ='; }
 
-  function addN(min,max){ const a=randInt(min,max); const b=secondOperand(String(a).length); return numToStr(a)+' + '+numToStr(b)+' ='; }
-  function subN(min,max){ const a=randInt(Math.round((min+max)/2),max); let b=secondOperand(String(a).length); if(b>=a) b=randInt(1,a-1); return numToStr(a)+' − '+numToStr(b)+' ='; }
+  function addN(min,max,pDiff){ const a=randInt(min,max); const b=secondOperand(String(a).length,pDiff); return numToStr(a)+' + '+numToStr(b)+' ='; }
+  function subN(min,max,pDiff){ const a=randInt(Math.round((min+max)/2),max); let b=secondOperand(String(a).length,pDiff); if(b>=a) b=randInt(1,a-1); return numToStr(a)+' − '+numToStr(b)+' ='; }
 
   function mul_L2(){ const n=randInt(23,689), t=randInt(2,9); return numToStr(n)+' × '+t+' ='; }
   function div_L2(){ const t=randInt(2,9), q=randInt(11,99); return numToStr(t*q)+' ÷ '+t+' ='; }
@@ -208,13 +210,10 @@
   function mul_L6(){ const a=randInt(2450,9876), b=randInt(23,97); return numToStr(a)+' × '+b+' ='; }
   function div_L6_long(){ const d=randInt(11,38), n=randInt(1200,9876); return numToStr(n)+' ÷ '+d+' ='; }
 
-  function add_L6(){ const a=randInt(1000000,8999999); const b=secondOperand(String(a).length); return numToStr(a)+' + '+numToStr(b)+' ='; }
+  function add_L6(){ const a=randInt(1000000,8999999); const b=secondOperand(String(a).length,0.6); return numToStr(a)+' + '+numToStr(b)+' ='; }
   function sub_L6(){
-    if(Math.random()<0.5){
-      const a=randInt(200000,999999)/100; const b=randInt(100000,Math.floor(a*100)-100)/100;
-      return a.toFixed(2)+' − '+b.toFixed(2)+' =';
-    }
-    const a=randInt(4000000,9999999); let b=secondOperand(String(a).length); if(b>=a) b=randInt(100000,a-100000);
+    if(Math.random()<0.5) return decimalsAddSubPV(4,2,5,'sub');
+    const a=randInt(4000000,9999999); let b=secondOperand(String(a).length,0.6); if(b>=a) b=randInt(100000,a-100000);
     return numToStr(a)+' − '+numToStr(b)+' =';
   }
 
@@ -269,16 +268,21 @@
   }
 
   /* ---------- decimals ---------- */
-  function randDecimal(dpOptions, wholeMax){
-    const dp=pick(dpOptions); const whole=randInt(0,wholeMax);
-    const fracDigits=randInt(1,Math.pow(10,dp)-1);
-    return {val: whole+fracDigits/Math.pow(10,dp), dp};
-  }
-  function decimalsAddSub(dpOptions, wholeMax){
-    const A=randDecimal(dpOptions,wholeMax), B=randDecimal(dpOptions,wholeMax);
-    if(Math.random()<0.5) return A.val.toFixed(A.dp)+' + '+B.val.toFixed(B.dp)+' =';
-    const hi=A.val>=B.val?A:B, lo=A.val>=B.val?B:A;
-    return hi.val.toFixed(hi.dp)+' − '+lo.val.toFixed(lo.dp)+' =';
+  /* Level 5+: each of the two numbers' first digit place and last digit place differ from the other's ~60% of the time (e.g. 67.23 and 9.2345) */
+  function decimalsAddSubPV(maxWhole,minDp,maxDp,op){
+    function otherThan(current,lo,hi){ const r=[]; for(let i=lo;i<=hi;i++) if(i!==current) r.push(i); return pick(r); }
+    function build(w,dp){
+      let whole=''+randInt(1,9); for(let i=1;i<w;i++) whole+=randInt(0,9);
+      let frac=''; for(let i=1;i<=dp;i++) frac+=(i===dp?randInt(1,9):randInt(0,9));
+      return whole+'.'+frac;
+    }
+    const wA=randInt(1,maxWhole), dpA=randInt(minDp,maxDp);
+    const wB=Math.random()<0.6 ? otherThan(wA,1,maxWhole) : wA;
+    const dpB=Math.random()<0.6 ? otherThan(dpA,minDp,maxDp) : dpA;
+    let a=build(wA,dpA), b=build(wB,dpB);
+    if(op ? op==='add' : Math.random()<0.5) return a+' + '+b+' =';
+    if(parseFloat(a)<parseFloat(b)) { const t=a; a=b; b=t; }
+    return a+' − '+b+' =';
   }
   function decimalsL2(){
     const a=randInt(1,9)/10, b=randInt(1,9)/10;
@@ -292,7 +296,6 @@
     const a=randInt(10,99)+randInt(1,99)/100, b=randInt(10,99)+randInt(1,99)/100;
     return Math.random()<0.5 ? (a.toFixed(2)+' + '+b.toFixed(2)+' =') : (Math.max(a,b).toFixed(2)+' − '+Math.min(a,b).toFixed(2)+' =');
   }
-  function decimalsAddSub_L5(){ return decimalsAddSub([2,3], 98); }
   function decimalsCompare(){
     const vals=new Set(); while(vals.size<3){ vals.add((randInt(100,599)/1000).toFixed(3)); }
     return 'Order these decimals from smallest to largest: '+[...vals].join(', ');
@@ -401,6 +404,44 @@
     }
     const arr=[...nums];
     return 'Order these from smallest to largest: '+arr.map(numToStr).join(', ');
+  }
+
+  /* Level 5+: five numbers. The smallest has one fewer digit than the rest but a higher first digit than any of them, so ordering by digit value alone gets it wrong */
+  function orderLargeNumbersPV(digits){
+    function make(d,lead){ let s=''+lead; for(let i=1;i<d;i++) s+=randInt(0,9); return parseInt(s,10); }
+    const oddLead=randInt(4,9);
+    const seen=new Set(), nums=[], leads=[];
+    while(nums.length<4){
+      const lead=(leads.length && Math.random()<0.65) ? pick(leads) : randInt(1,oddLead-1);
+      const n=make(digits,lead);
+      if(!seen.has(n)){ seen.add(n); nums.push(n); leads.push(lead); }
+    }
+    nums.push(make(digits-1,oddLead));
+    return 'Order these from smallest to largest: '+shuffle(nums).map(numToStr).join(', ');
+  }
+
+  /* Level 5+: five decimals between 0 and 1 (lengths vary). The smallest starts one place value further right than the rest but has a higher first digit than any of them, e.g. 0.09958 against 0.845, 0.2987 */
+  function pvDecimal(firstPlace,dp,lead){
+    let digits='';
+    for(let i=1;i<=dp;i++){
+      if(i<firstPlace) digits+='0';
+      else if(i===firstPlace) digits+=lead;
+      else if(i===dp) digits+=randInt(1,9);
+      else digits+=randInt(0,9);
+    }
+    return '0.'+digits;
+  }
+  function orderDecimalsPV(deepPlace){
+    const majPlace=randInt(1,deepPlace-1), oddPlace=majPlace+1;
+    const oddLead=randInt(4,9);
+    const seen=new Set(), out=[], leads=[];
+    while(out.length<4){
+      const lead=(leads.length && Math.random()<0.65) ? pick(leads) : randInt(1,oddLead-1);
+      const s=pvDecimal(majPlace,randInt(Math.max(majPlace,2),5),lead);
+      if(!seen.has(s)){ seen.add(s); out.push(s); leads.push(lead); }
+    }
+    out.push(pvDecimal(oddPlace,randInt(Math.max(oddPlace,3),5),oddLead));
+    return 'Order these from smallest to largest: '+shuffle(out).join(', ');
   }
 
   /* ---------- missing number ---------- */
@@ -517,10 +558,10 @@
       other:[decimalsL3, tenHundred, fracSameDenom, negThroughZero, missingNumber_L23, roundingL23, numberBonds_L23] },
     { main:[()=>addN(12000,89999), ()=>subN(12000,89999), mul_L4, div_L4_rem],
       other:[squaresCubes, factorsEtc, fracRelated, decimalsCompare, decimalsAddSub_L4, percentagesRecognition, negCalc, missingOrSeqL4, tenHundredThousand, ()=>orderLargeNumbers(5), numberBonds_L4] },
-    { main:[()=>addN(120000,899999), ()=>subN(120000,899999), mul_L5, div_L5_rem],
-      other:[fracUnlike, fracRelated, fracOther, decimalsAddSub_L5, percentageOfAmount, negCalc, squaresCubes, factorsSimple, sequenceL5, missingNumber_L45, ()=>orderLargeNumbers(6), numberBonds_L56] },
+    { main:[()=>addN(120000,899999,0.6), ()=>subN(120000,899999,0.6), mul_L5, div_L5_rem],
+      other:[fracUnlike, fracRelated, fracOther, ()=>decimalsAddSubPV(3,2,4), percentageOfAmount, negCalc, squaresCubes, factorsSimple, sequenceL5, missingNumber_L45, ()=>orderLargeNumbersPV(6), ()=>orderDecimalsPV(2), numberBonds_L56] },
     { main:[add_L6, sub_L6, mul_L6, div_L6_long],
-      other:[bidmas, fracL6, decimalsMultDiv, percentagesL6, commonFactorsMultiples, missingNumberAlgebra, sequenceL6, largeAndNegative, ()=>orderLargeNumbers(7), numberBonds_L56] }
+      other:[bidmas, fracL6, decimalsMultDiv, ()=>decimalsAddSubPV(4,2,5), percentagesL6, commonFactorsMultiples, missingNumberAlgebra, sequenceL6, largeAndNegative, ()=>orderLargeNumbersPV(7), ()=>orderDecimalsPV(3), numberBonds_L56] }
   ];
 
   /* from Level 3 up, one of the 4 main-operation slots is swapped for a matching missing-number version */
